@@ -1,0 +1,114 @@
+﻿CREATE TRIGGER trg_insert_check1 on nhanvien for insert
+as
+begin
+	
+	-- Select từng thằng 1 trong inserted
+	IF (SELECT luong FROM inserted) <= 15000
+	BEGIN
+		PRINT 'Luong phai lon hon 15000!'
+		ROLLBACK TRANSACTION
+	END
+
+end
+GO
+
+create trigger trg_insert_check2 on nhanvien for insert
+as
+begin
+	declare @age int
+	set @age = YEAR(GETDATE()) - (select YEAR(ngsinh) from inserted )
+	
+	if ( @age < 18 or @age > 65 )
+		begin
+			print 'Tuoi phai tu 18 toi 65'
+			rollback transaction
+		end
+end
+GO
+
+create trigger trg_update_check1 on nhanvien for update
+as
+begin
+	if ( select dchi from inserted ) like '%HCM%'
+		begin
+			print 'Nhan vien nay o TPHCM, khong duoc sua !'
+		end
+end
+GO
+
+create trigger trg_insert_check3
+on nhanvien
+after insert
+as
+begin
+    declare @total_male int;
+    declare @total_female int;
+    
+    select @total_male = count(*)
+    from nhanvien
+    where phai = 'nam';
+
+    select @total_female = count(*)
+    from nhanvien
+    where phai = 'nữ';
+
+    print 'NV Nam: ' + cast(@total_male as varchar(10)) + ',NV Nữ: ' + cast(@total_female as varchar(10));
+end;
+GO
+
+create trigger trg_update_check2
+on nhanvien
+after update
+as
+begin
+    declare @total_male int;
+    declare @total_female int;
+    
+    select @total_male = count(*)
+    from nhanvien
+    where phai = 'nam';
+
+    select @total_female = count(*)
+    from nhanvien
+    where phai = 'nữ';
+
+    print 'NV Nam: ' + cast(@total_male as varchar(10)) + ', NV Nữ: ' + cast(@total_female as varchar(10));
+end;
+GO
+
+create trigger trg_delete_check1
+on dean
+after delete
+as
+begin
+    select ma_nvien, count(mada) as 'so luong'
+    from phancong
+    group by ma_nvien;
+end;
+Go
+
+create trigger trg_delete_insteadOf1
+on nhanvien
+instead of delete
+as
+begin
+    delete from thannhan 
+    where ma_nvien in (select manv from deleted);
+    
+    delete from nhanvien 
+    where manv in (select manv from deleted);
+end;
+GO
+
+create trigger trg_insert_show
+on nhanvien
+instead of insert
+as
+begin
+    insert into nhanvien(manv, tennv, phai, ngsinh)
+    select manv, tennv, phai, ngsinh from inserted;
+
+    insert into phancong(ma_nvien, mada)
+    select manv, 1 from inserted;
+end;
+GO
